@@ -1,0 +1,94 @@
+# 1. Создаем пространство имен (папка внутри кластера)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gcomm
+---
+# ==========================================
+# СЕРВИС 1: ЭМУЛЯТОР AWS (LocalStack)
+# Заменяет: S3 (файлы) и SQS (очереди)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: gcomm
+spec:
+  selector:
+    app: localstack
+  ports:
+    - protocol: TCP
+      port: 4566
+      targetPort: 4566
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: gcomm
+spec:
+  replicas: 1 # Один экземпляр
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:latest
+          ports:
+            - containerPort: 4566
+          env:
+            - name: SERVICES
+              value: "s3,sqs"
+            - name: DEBUG
+              value: "1"
+---
+# ==========================================
+# СЕРВИС 2: БАЗА ДАННЫХ (PostgreSQL)
+# Заменяет: AWS Redshift
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: gcomm
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: gcomm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:13
+          ports:
+            - containerPort: 5432
+          env:
+            # Логин/пароль (запомни их)
+            - name: POSTGRES_USER
+              value: "admin"
+            - name: POSTGRES_PASSWORD
+              value: "admin123"
+            - name: POSTGRES_DB
+              value: "gcomm_db"
